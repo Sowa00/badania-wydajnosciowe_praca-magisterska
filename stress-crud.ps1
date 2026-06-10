@@ -8,11 +8,11 @@ $JMeterPath = "C:\Users\Kuba\Desktop\Magisterka\apache-jmeter-5.6.3\bin\jmeter.b
 $JmxPath    = "C:\Users\Kuba\Desktop\Magisterka\apache-jmeter-5.6.3\bin\View Results Tree CRUD - stress test.jmx"
 $TargetDir  = "C:\Users\Kuba\Desktop\badania-wydajnosciowe_praca-magisterska"
 
-# Wykrywanie nazwy uslugi bazy danych z docker-compose
+# Dynamiczne wykrywanie usługi bazy danych
 $DbService = (docker compose config --services | Select-String -Pattern "db|postgres" | Select-Object -First 1).ToString()
-if (-not $DbService) { $DbService = "postgres" } # Fallback
+if (-not $DbService) { $DbService = "postgres" }
 
-# MATRYCA KONFIGURACJI - Parametr 'Service' musi odpowiadac nazwom z docker-compose.yml!
+# Matryca konfiguracji wariantów technologicznych
 $Tests = @(
     @{ Name = "Spring-Boot-JVM";    Port = "8080"; Log = "stress-spring-jvm.jtl";    Report = "stress-raport-spring-jvm";    Service = "spring-jvm" },
     @{ Name = "Spring-Boot-Native"; Port = "8081"; Log = "stress-spring-native.jtl"; Report = "stress-raport-spring-native"; Service = "spring-native" },
@@ -22,8 +22,9 @@ $Tests = @(
 
 Write-Host "[INIT] INICJALIZACJA PROJEKTU BADAWCZEGO: REPLICATED CRUD STRESS TEST" -ForegroundColor Red
 
-# Globalne czyszczenie starych raportow stress testu
+# Globalne czyszczenie starych danych i folderów przed nowym maratonem
 Remove-Item -Recurse -Force "$TargetDir\stress-raport-*" -ErrorAction SilentlyContinue
+Remove-Item -Force "$TargetDir\stress-*.jtl" -ErrorAction SilentlyContinue
 
 foreach ($Test in $Tests) {
     $vName = $Test.Name
@@ -43,7 +44,7 @@ foreach ($Test in $Tests) {
     docker volume rm badania-wydajnosciowe_praca-magisterska_postgres_data 2>$null
     docker volume prune -f 2>$null
 
-    # 2. PODNOSZENIE SAMES BAZY DANYCH
+    # 2. PODNOSZENIE SAMEJ BAZY DANYCH
     Write-Host "[DOCKER] Uruchamianie izolowanej usługi bazy danych: $DbService..." -ForegroundColor DarkGreen
     docker compose up -d $DbService
 
@@ -52,7 +53,6 @@ foreach ($Test in $Tests) {
 
     # 3. WSTRZYKNIĘCIE SEKWENCJI DO CZYSZCZONEJ BAZY
     Write-Host "[POSTGRES] Inicjalizacja struktur sekwencji SQL..." -ForegroundColor Cyan
-    # Sprawdzamy stan kontenera bazy i wstrzykujemy SQL
     $DbContainer = (docker ps --filter "name=db|postgres" --format "{{.Names}}" | Select-Object -First 1)
     docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS products_SEQUENCE START WITH 1 INCREMENT BY 1;" 2>$null
     docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS hibernate_sequence START WITH 1 INCREMENT BY 1;" 2>$null
@@ -66,10 +66,6 @@ foreach ($Test in $Tests) {
     $LogFile = "$TargetDir\$vLog"
     $ReportDir = "$TargetDir\$vRep"
 
-    if (Test-Path $LogFile) {
-        Remove-Item $LogFile -Force
-    }
-
     # Czas na wstanie kontekstu aplikacji na bezpiecznej bazie
     Write-Host "[INFO] Oczekiwanie 25 sekund na pelne rozgrzanie kontekstu i gniazda TCP dla $vName..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 25
@@ -80,7 +76,7 @@ foreach ($Test in $Tests) {
     & $JMeterPath -n -t $JmxPath -l $LogFile $pPort
 
     Write-Host "[SUCCESS] Eksperyment przeciazeniowy zakonczony dla: $vName" -ForegroundColor Green
-    Write-Host "[EXEC] Generowanie dedykowanego raportu statystycznego HTML..." -ForegroundColor Yellow
+    Write-Host "[EXEC] Generowanie raportu HTML (Zwiekszona pamiec RAM)..." -ForegroundColor Yellow
 
     if (Test-Path $ReportDir) {
         Remove-Item -Recurse -Force $ReportDir -ErrorAction SilentlyContinue
@@ -93,4 +89,4 @@ foreach ($Test in $Tests) {
 }
 
 Write-Host ""
-Write-Host "[STATUS] PROCEDURA STRESS TESTOW ZAKONCZONA POMYŚLNIE." -ForegroundColor Green
+Write-Host "[STATUS] PROCEDURA RE-RUN STRESS TESTOW ZAKONCZONA SUKCESEM. Wszystkie raporty sa gotowe!" -ForegroundColor Green

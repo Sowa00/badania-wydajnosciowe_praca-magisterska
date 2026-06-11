@@ -12,4 +12,5 @@ public class Product extends PanacheEntity {
     public String name;
     public String category;
     public BigDecimal price;
+
 }

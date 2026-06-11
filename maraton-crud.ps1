@@ -53,10 +53,15 @@ foreach ($Test in $Tests) {
     # 3. WSTRZYKNIĘCIE SEKWENCJI DO CZYSZCZONEJ BAZY DANYCH
     Write-Host "[POSTGRES] Inicjalizacja struktur sekwencji SQL..." -ForegroundColor Cyan
     $DbContainer = (docker ps --filter "name=db|postgres" --format "{{.Names}}" | Select-Object -First 1)
+
+    # Tworzymy sekwencje, żeby aplikacje wstały bez błędów
     docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS products_SEQUENCE START WITH 1 INCREMENT BY 1;" 2>$null
     docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS hibernate_sequence START WITH 1 INCREMENT BY 1;" 2>$null
-    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('products_SEQUENCE', 5000, false);" 2>$null
-    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('hibernate_sequence', 5000, false);" 2>$null
+
+    # WYŁĄCZONE: Sztuczne przesuwanie licznika na 5000.
+    # Baza startuje czysto i przypisuje nowym produktom ID od 1 w górę.
+    # docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('products_SEQUENCE', 5000, false);" 2>$null
+    # docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('hibernate_sequence', 5000, false);" 2>$null
 
     # 4. PODNOSZENIE DEDYKOWANEJ APLIKACJI
     Write-Host "[DOCKER] Uruchamianie usługi aplikacji badanej: $vServ..." -ForegroundColor DarkGreen

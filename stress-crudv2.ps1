@@ -1,5 +1,5 @@
 $JMeterPath = "C:\Users\Kuba\Desktop\Magisterka\apache-jmeter-5.6.3\bin\jmeter.bat"
-$JmxPath    = "C:\Users\Kuba\Desktop\Magisterka\apache-jmeter-5.6.3\bin\View Results Tree CRUDv2.jmx"
+$JmxPath    = "C:\Users\Kuba\Desktop\Magisterka\apache-jmeter-5.6.3\bin\View Results Tree CRUD - stress testv2.jmx"
 $TargetDir  = "C:\Users\Kuba\Desktop\badania-wydajnosciowe_praca-magisterska"
 
 $DbService = (docker compose config --services | Select-String -Pattern "db|postgres" | Select-Object -First 1).ToString()
@@ -7,14 +7,14 @@ if (-not $DbService) { $DbService = "postgres" }
 $DbContainer = "praca_magisterska_db_container"
 
 $Tests = @(
-    @{ Name = "Spring-Boot-JVM";    Port = "8080"; Log = "wyniki-perf-spring-jvm.jtl";    Report = "raport-perf-spring-jvm";    Service = "spring-jvm" },
-    @{ Name = "Spring-Boot-Native"; Port = "8081"; Log = "wyniki-perf-spring-native.jtl"; Report = "raport-perf-spring-native"; Service = "spring-native" },
-    @{ Name = "Quarkus-JVM";        Port = "8082"; Log = "wyniki-perf-quarkus-jvm.jtl";   Report = "raport-perf-quarkus-jvm";   Service = "quarkus-jvm" },
-    @{ Name = "Quarkus-Native";     Port = "8083"; Log = "wyniki-perf-quarkus-native.jtl"; Report = "raport-perf-quarkus-native";  Service = "quarkus-native" }
+    @{ Name = "Spring-Boot-JVM";    Port = "8080"; Log = "wyniki-stress-spring-jvm.jtl";    Report = "raport-stress-spring-jvm";    Service = "spring-jvm" },
+    @{ Name = "Spring-Boot-Native"; Port = "8081"; Log = "wyniki-stress-spring-native.jtl"; Report = "raport-stress-spring-native"; Service = "spring-native" },
+    @{ Name = "Quarkus-JVM";        Port = "8082"; Log = "wyniki-stress-quarkus-jvm.jtl";   Report = "raport-stress-quarkus-jvm";   Service = "quarkus-jvm" },
+    @{ Name = "Quarkus-Native";     Port = "8083"; Log = "wyniki-stress-quarkus-native.jtl"; Report = "raport-stress-quarkus-native";  Service = "quarkus-native" }
 )
 
-Write-Host "[INIT] Starting CRUD Benchmark execution (4x2h profile)" -ForegroundColor Cyan
-Remove-Item -Recurse -Force "$TargetDir\raport-perf-*" -ErrorAction SilentlyContinue
+Write-Host "[INIT] Starting CRUD STRESS TEST (1000 Threads, 5 min Ramp-Up)" -ForegroundColor Cyan
+Remove-Item -Recurse -Force "$TargetDir\raport-stress-*" -ErrorAction SilentlyContinue
 
 foreach ($Test in $Tests) {
     $vName = $Test.Name
@@ -24,7 +24,7 @@ foreach ($Test in $Tests) {
     $vServ = $Test.Service
 
     Write-Host "`n========================================================================" -ForegroundColor Gray
-    Write-Host "[INFO] Provisioning isolated environment for target: $vName" -ForegroundColor Cyan
+    Write-Host "[INFO] Provisioning isolated environment for STRESS target: $vName" -ForegroundColor Cyan
     Write-Host "========================================================================" -ForegroundColor Gray
 
     Write-Host "[DOCKER] Purging existing containers and volumes..." -ForegroundColor DarkYellow
@@ -90,24 +90,24 @@ foreach ($Test in $Tests) {
     }
     Write-Host "`n[HEALTHCHECK] Application $vName ready." -ForegroundColor Green
 
-    # 4. UTWORZENIE DANYCH
-        Write-Host "[POSTGRES] Seeding initial dataset (5000 records) with category defaults..." -ForegroundColor Cyan
+    # 4. WSTRZYKUJEMY DANE
+    Write-Host "[POSTGRES] Seeding initial dataset (5000 records) with category defaults..." -ForegroundColor Cyan
 
-        docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS products_SEQUENCE START WITH 1 INCREMENT BY 1;" 2>$null
-        docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS hibernate_sequence START WITH 1 INCREMENT BY 1;" 2>$null
+    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS products_SEQUENCE START WITH 1 INCREMENT BY 1;" 2>$null
+    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "CREATE SEQUENCE IF NOT EXISTS hibernate_sequence START WITH 1 INCREMENT BY 1;" 2>$null
 
-        docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "TRUNCATE TABLE products RESTART IDENTITY CASCADE;" 2>$null
-        docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "INSERT INTO products (id, name, category, price) SELECT i, 'Product_Start_' || i, 'General', 150.0 FROM generate_series(1, 5000) AS i;" 2>$null
+    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "TRUNCATE TABLE products RESTART IDENTITY CASCADE;" 2>$null
+    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "INSERT INTO products (id, name, category, price) SELECT i, 'Product_Start_' || i, 'General', 150.0 FROM generate_series(1, 5000) AS i;" 2>$null
 
-        docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('products_SEQUENCE', 5000, true);" 2>$null
-        docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('hibernate_sequence', 5000, true);" 2>$null
+    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('products_SEQUENCE', 5000, true);" 2>$null
+    docker exec -i $DbContainer psql -U postgres -d praca_magisterska_db -c "SELECT setval('hibernate_sequence', 5000, true);" 2>$null
 
     $LogFile = "$TargetDir\$vLog"
     $ReportDir = "$TargetDir\$vRep"
     if (Test-Path $LogFile) { Remove-Item $LogFile -Force }
 
     # 5. JMETER
-    Write-Host "[EXEC] Initiating JMeter load test sequence..." -ForegroundColor Yellow
+    Write-Host "[EXEC] Initiating JMeter STRESS test sequence (5 min)..." -ForegroundColor Yellow
     $pPort = "-Jport=" + $vPort
     & $JMeterPath -n -t $JmxPath -l $LogFile $pPort
 
@@ -116,10 +116,10 @@ foreach ($Test in $Tests) {
         exit
     }
 
-    Write-Host "[EXEC] Aggregating metrics and generating HTML reports..." -ForegroundColor Yellow
+    Write-Host "[EXEC] Aggregating stress metrics and generating HTML reports..." -ForegroundColor Yellow
     if (Test-Path $ReportDir) { Remove-Item -Recurse -Force $ReportDir -ErrorAction SilentlyContinue }
     & $JMeterPath -g $LogFile -o $ReportDir
 
     Start-Sleep -Seconds 5
 }
-Write-Host "`n[STATUS] Benchmark sequence completed successfully." -ForegroundColor Green
+Write-Host "`n[STATUS] Stress Benchmark sequence completed successfully." -ForegroundColor Green

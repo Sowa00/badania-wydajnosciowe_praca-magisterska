@@ -24,7 +24,6 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=admin
       - BPL_JVM_THREAD_COUNT=50
-      # --- PRZYWRÓCENIE BEZPIECZNEGO STOSU (1M) I BALANS REGIONÓW DLA 512M CONTENERA ---
       - JAVA_OPTS=-Xss1m -Xms128m -Xmx220m -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=64m
     deploy:
       resources:
@@ -63,9 +62,7 @@ services:
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/praca_magisterska_db
       - QUARKUS_DATASOURCE_USERNAME=postgres
       - QUARKUS_DATASOURCE_PASSWORD=admin
-      # --- POPRAWKA: Zmiana z drop-and-create na update, żeby nie niszczyć bazy ---
       - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
-      # --- POPRAWKA: Optymalizacja puli połączeń dla bezpiecznego limitu 512M RAM ---
       - QUARKUS_DATASOURCE_JDBC_MAX_SIZE=30
       - QUARKUS_DATASOURCE_JDBC_ACQUISITION_TIMEOUT=30
       - JAVA_OPTS=-Xss1m -Xms128m -Xmx220m -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=64m
@@ -75,7 +72,7 @@ services:
           cpus: '1.0'
           memory: 512M
 
-  # 4. QUARKUS - Obraz Natywny (GraalVM / Mandrel)
+  # 4. QUARKUS - Obraz Natywny
   quarkus-native:
     image: quarkus-app-native:latest
     container_name: quarkus-native-container
@@ -88,9 +85,7 @@ services:
       - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/praca_magisterska_db
       - QUARKUS_DATASOURCE_USERNAME=postgres
       - QUARKUS_DATASOURCE_PASSWORD=admin
-      # --- POPRAWKA: Zmiana z drop-and-create na update ---
       - QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update
-      # --- POPRAWKA: Bezpieczna wielkość puli połączeń ---
       - QUARKUS_DATASOURCE_JDBC_MAX_SIZE=30
     deploy:
       resources:

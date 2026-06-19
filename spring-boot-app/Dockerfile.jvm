@@ -1,0 +1,5 @@
+﻿FROM registry.access.redhat.com/ubi9/openjdk-25-runtime:1.24
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} /deployments/app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/deployments/app.jar"]

@@ -7,5 +7,6 @@
 /dataSources/
 /dataSources.local.xml
 .idea/
-*.iml
-*.xml
+.idea/.iml
+.idea/.xml
+/Raporty do pracy mgr/
